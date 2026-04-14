@@ -1,0 +1,26 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+description = "Introduction to function calling in LLMs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "llm-sdk",
+    "numpy>=2.2.6",
+    "pydantic>=2.12.5",
+]
+
+[tool.uv.sources]
+llm-sdk = { path = "llm_sdk", editable = true }
+torch   = { index = "pytorch-cpu" }   # CPU only — skips all nvidia packages
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url  = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[project.optional-dependencies]
+dev = [
+    "flake8>=7.0.0",
+    "mypy>=1.8.0",
+]
