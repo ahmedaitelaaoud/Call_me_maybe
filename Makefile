@@ -1,32 +1,57 @@
-PYTHON = uv run python
-MODULE = -m src
-
-.PHONY: install run debug clean lint lint-strict
+NAME = src
 
 install:
-	@echo "Installing dependencies using uv..."
-	uv sync
+	@uv sync
 
 run:
-	@echo "Running the main pipeline..."
-	$(PYTHON) $(MODULE)
-
-debug:
-	@echo "Running in debug mode (pdb)..."
-	$(PYTHON) -m pdb $(MODULE)
-
-clean:
-	@echo "Cleaning Python cache files..."
-	rm -rf .mypy_cache
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
+	@uv run python -m $(NAME)
 
 lint:
-	@echo "Running standard linting (flake8 & mypy)..."
-	uv run flake8 src
-	uv run mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs src
+	@flake8
+	@mypy . --warn-return-any --warn-unused-ignores --ignores-missing-imports --disalow-untyped-defs
 
 lint-strict:
-	@echo "Running strict linting..."
-	uv run flake8 src
-	uv run mypy --strict src
+	@mypy . --strict
+
+clean:
+	@rm -rf */__pycache__ */.mypy_cashe __paycache__
+
+debug:
+	@uv run python -m pdb -m $(NAME)
+
+setup:
+	@echo "Setting up goinfre environment..."
+
+	@GOINFRE_BASE="/home/$$USER/goinfre"; \
+	UV_CACHE="$$GOINFRE_BASE/uv"; \
+	VENV_DIR="$$GOINFRE_BASE/.venv"; \
+	CACHE_LINK="$$HOME/.cache/uv"; \
+	PROJECT_VENV_LINK=".venv"; \
+	\
+	mkdir -p "$$UV_CACHE"; \
+	mkdir -p "$$VENV_DIR"; \
+	mkdir -p "$$HOME/.cache"; \
+	\
+	if [ -d "$$CACHE_LINK" ] && [ ! -L "$$CACHE_LINK" ]; then \
+		echo "Removing existing uv cache directory..."; \
+		rm -rf "$$CACHE_LINK"; \
+	fi; \
+	\
+	if [ -L "$$CACHE_LINK" ]; then \
+		echo "Removing existing uv cache symlink..."; \
+		rm -f "$$CACHE_LINK"; \
+	fi; \
+	\
+	ln -s "$$UV_CACHE" "$$CACHE_LINK"; \
+	echo "Linked uv cache -> $$UV_CACHE"; \
+	\
+	if [ -L "$$PROJECT_VENV_LINK" ] || [ -d "$$PROJECT_VENV_LINK" ]; then \
+		echo "Removing existing project .venv..."; \
+		rm -rf "$$PROJECT_VENV_LINK"; \
+	fi; \
+	\
+	ln -s "$$VENV_DIR" "$$PROJECT_VENV_LINK"; \
+	echo "Linked project .venv -> $$VENV_DIR"; \
+	\
+	echo "Done! Now run:"; \
+	echo "  make install"
