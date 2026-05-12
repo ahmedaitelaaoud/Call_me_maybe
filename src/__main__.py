@@ -3,6 +3,9 @@ from src.json_loader import load_function_definition, load_prompts
 from src.constrained_decoding import build_system_prompt, load_vocabulary
 from src.constrained_decoding import build_json_valid_ids, get_best_valid_token, extract_complete_json
 from llm_sdk import Small_LLM_Model
+import json
+import time
+import os
 
 
 def parse_args():
@@ -54,7 +57,6 @@ def main():
 
     print("Building a system prompt")
     system = build_system_prompt(functions)
-    print(system)
 
     print(f"Loading model: {args.model}")
     try:
@@ -66,6 +68,9 @@ def main():
     print("Building valid token IDs...")
     vocab = load_vocabulary(model)
     valid_ids = build_json_valid_ids(vocab)
+
+    all_results = []
+    start_time = time.time()
 
     print("Processing prompts...")
     for p in prompts:
@@ -81,10 +86,42 @@ def main():
             logits = model.get_logits_from_input_ids(generated_ids + all_generated)
             next_id = get_best_valid_token(logits, valid_ids)
             all_generated.append(next_id)
+
             text = model.decode(all_generated)
 
             clean_json = extract_complete_json(text)
-        print(clean_json)
+            if clean_json:
+                try:
+                    llm_json_response = json.loads(clean_json)
+                except Exception:
+                    pass
+
+        if not clean_json:
+            llm_json_response = {"name": "none", "args": {}}
+
+        all_results.append({
+            "prompt": prompt,
+            "name": llm_json_response.get("name", "none"),
+            "args": llm_json_response.get("args", {})
+        })
+
+        if llm_json_response.get("name", "none") != "none":
+            print(f"  -> {llm_json_response['name']}({llm_json_response['args']})")
+        else:
+            print("[ERROR] Could not generate function call.")
+
+    total_time = time.time() - start_time
+    all_llm_json_response_result = [result for result in all_results if result['name'] != "none"]
+
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    with open(args.output, 'w', encoding="utf-8") as f:
+        json.dump(all_llm_json_response_result, f, ensure_ascii=False, indent=2)
+
+    print(f"Results save to: {args.output}")
+    print("Completed")
+    print(f"Total time: {total_time:.2f} seconds")
+    print(f"Average time per prompt: {total_time/len(prompts):.2f} seconds")
+
 
 if __name__ == "__main__":
     try:
