@@ -1,4 +1,3 @@
-from src.models.functions_definition import FunctionDef
 from llm_sdk import Small_LLM_Model
 import json
 
@@ -20,6 +19,7 @@ def extract_complete_json(text):
             return text[start:i+1]
 
     return None
+
 
 def get_best_valid_token(logits, valid_ids):
     return max(valid_ids, key=lambda i: logits[i])
@@ -47,8 +47,10 @@ def load_vocabulary(model: Small_LLM_Model):
 
 def build_system_prompt(functions):
     lines = [
-        "STRICT SYSTEM RULES: use ONLY a matching function from the list below",
-        "If No function matches the user's intent (even if types match), set name:\"none\".",
+        "STRICT SYSTEM RULES: use ONLY a matching function "
+        "from the list below",
+        "If No function matches the user's intent (even if "
+        "types match), set name:\"none\".",
         "Never use an unrelated function for a differnet task.",
         "",
         "Available functions:",
@@ -59,5 +61,8 @@ def build_system_prompt(functions):
             for name, info in fn.parameters.items()
         )
         lines.append(f"  -{fn.name}({params}): {fn.description}")
-    lines.append('\nOutput ONLY valid JSON: {"name": "<fn>", "args": "{<args>}"}')
+    lines.append(
+        '\nOutput ONLY valid JSON: '
+        '{"name": "<fn>", "args": "{<args>}"}'
+    )
     return "\n".join(lines)
