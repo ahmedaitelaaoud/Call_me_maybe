@@ -27,7 +27,7 @@ def get_best_valid_token(logits, valid_ids):
 
 def build_json_valid_ids(vocab: dict):
     json_safe = set(
-        'abcdefghijklmnopkrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         '0123456789*.,_:-+/\'!?()[]{}"ĠĊ'
     )
     valid = set()
