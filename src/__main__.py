@@ -104,7 +104,7 @@ def main():
                     if "args" in llm_json_response:
                         llm_json_response["parameters"] = \
                             llm_json_response.pop("args")
-                    break  # Early stopping optimization
+                    break
                 except Exception:
                     pass
 
