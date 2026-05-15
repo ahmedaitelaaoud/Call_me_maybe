@@ -13,6 +13,36 @@ _JSON_SAFE: frozenset = frozenset(
 )
 
 
+TYPE_MAP: Dict[str, type] = {
+    "number": float,
+    "string": str,
+    "boolean": bool,
+    "integer": int,
+}
+
+
+
+def coerce_parameters(
+    parameters: Any,
+    fn_def: FunctionDef,
+) -> Dict[str, Any]:
+
+    if not isinstance(parameters, dict):
+        return {}
+    coerced: Dict[str, Any] = {}
+    for key, value in parameters.items():
+        param_def = fn_def.parameters.get(key)
+        if param_def is not None:
+            target = TYPE_MAP.get(param_def.type)
+            try:
+                coerced[key] = target(value) if target is not None else value
+            except (ValueError, TypeError):
+                coerced[key] = value
+        else:
+            coerced[key] = value
+    return coerced
+
+
 def extract_complete_json(text: str) -> Optional[str]:
 
     start = text.find("{")
