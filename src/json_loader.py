@@ -7,6 +7,15 @@ from src.models.prompts import Prompt
 
 
 def load_function_definition(path: str) -> List[FunctionDef]:
+    """
+    Load function definitions from a JSON file.
+
+    Args:
+        path: Path to the JSON setup file containing function definitions.
+
+    Returns:
+        A list of function definition objects.
+    """
     try:
         with open(path, 'r', encoding="utf-8") as f:
             data = json.load(f)
@@ -20,6 +29,15 @@ def load_function_definition(path: str) -> List[FunctionDef]:
 
 
 def load_prompts(path: str) -> List[Prompt]:
+    """
+    Load natural language prompts from a JSON file.
+
+    Args:
+        path: Path to the JSON file containing prompts.
+
+    Returns:
+        A list of prompt objects.
+    """
     try:
         with open(path, 'r', encoding="utf-8") as f:
             data = json.load(f)
