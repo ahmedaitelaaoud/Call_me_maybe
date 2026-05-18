@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from llm_sdk import Small_LLM_Model
@@ -14,6 +14,7 @@ from src.constrained_decoding import (
     extract_complete_json,
     get_best_valid_token,
     load_vocabulary,
+    coerce_parameters,
     precompute_name_valid_ids,
 )
 from src.json_loader import load_function_definition, load_prompts
@@ -164,6 +165,8 @@ def main() -> None:
     fn_names = {fn.name for fn in functions}
     name_cache = precompute_name_valid_ids(vocab, fn_names)
 
+    fn_lookup: Dict[str, FunctionDef] = {fn.name: fn for fn in functions}
+
     all_results: List[Dict[str, Any]] = []
     start_time = time.time()
 
@@ -182,6 +185,12 @@ def main() -> None:
 
         fn_name: str = response.get("name", "none")
         raw_params: Any = response.get("parameters", {})
+        fn_def: Optional[FunctionDef] = fn_lookup.get(fn_name)
+        parameters = (
+            coerce_parameters(raw_params, fn_def)
+            if fn_def is not None
+            else raw_params
+        )
         if fn_name != "none":
             print(
                 f"  ✅ Generated call -> {response['name']}"
@@ -193,7 +202,7 @@ def main() -> None:
         all_results.append({
                 "prompt": prompt,
                 "name": fn_name,
-                "parameters": raw_params,
+                "parameters": parameters,
             })
     total_time = time.time() - start_time
 
