@@ -2,8 +2,9 @@ import argparse
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
+import numpy as np
 from llm_sdk import Small_LLM_Model
 
 from src.constrained_decoding import (
@@ -25,7 +26,13 @@ DEFAULT_OUTPUT = "data/output/function_calling_results.json"
 DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    Parse the command-line arguments.
+
+    Returns:
+        The parsed command-line arguments as a Namespace object.
+    """
     parser = argparse.ArgumentParser(
         description="Translate natural language into function calls."
     )
@@ -41,6 +48,18 @@ def parse_args():
 
 
 def load_model(model_name: str) -> Small_LLM_Model:
+    """
+    Load the small LLM model explicitly by valid model path.
+
+    Args:
+        model_name: The name or path of the model.
+
+    Returns:
+        The initialized model instance.
+
+    Raises:
+        RuntimeError: if the model is not found.
+    """
     try:
         return Small_LLM_Model(model_name=model_name)
     except OSError:
@@ -50,10 +69,23 @@ def load_model(model_name: str) -> Small_LLM_Model:
 def generate_function_call(
     model: Small_LLM_Model,
     base_input_ids: List[int],
-    base_valid_ids: set,
-    name_cache: Dict[str, set],
+    base_valid_ids: np.ndarray,
+    name_cache: Dict[str, np.ndarray],
     max_steps: int = 50,
 ) -> Dict[str, Any]:
+    """
+    Generate a function call step-by-step using constrained decoding.
+
+    Args:
+        model: The language model.
+        base_input_ids: The input IDs of the prompt.
+        base_valid_ids: The initial valid IDs for JSON.
+        name_cache: The precomputed valid IDs for function names.
+        max_steps: The maximum number of generation steps.
+
+    Returns:
+        A dictionary containing the structured function call.
+    """
     newly_generated_ids: List[int] = list(
         model.encode('{"name": "')[0].tolist()
     )
@@ -84,6 +116,13 @@ def generate_function_call(
 
 
 def save_results(path: str, results: List[Dict[str, Any]]) -> None:
+    """
+    Save the function calling results to a JSON file.
+
+    Args:
+        path: The path where the results should be saved.
+        results: A list of dictionaries representing function calls.
+    """
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -91,6 +130,10 @@ def save_results(path: str, results: List[Dict[str, Any]]) -> None:
 
 
 def main() -> None:
+    """
+    The main pipeline function that loads the model,
+    builds valid token configurations, and iterates through tests.
+    """
 
     print("🚀 Starting function calling pipeline...")
     args = parse_args()
