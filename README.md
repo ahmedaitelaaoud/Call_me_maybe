@@ -1,61 +1,79 @@
-Call Me Maybe — Function Calling with Constrained Decoding
+# Call Me Maybe
 
-A minimal, reliable pipeline that turns natural language prompts into **valid, schema‑compliant JSON function calls**. It uses constrained decoding to keep the output parseable and aligned with your function definitions.
+An educational Python pipeline that explores local LLM function calling through token filtering and function-name prefix constraints.
 
-## Highlights
-- **Strict JSON output** with a fixed schema.
-- **Token‑level constraints** prevent invalid keys, types, or structure.
-- **Deterministic schema compliance** without post‑hoc repair.
-- **Simple CLI** for quick experiments and grading.
+It translates prompts into JSON records describing a proposed function call. **It does not execute functions, and it is not a complete JSON Schema decoder.**
 
 ## How it works
-1. Load function definitions and prompts from data/input/.
-2. Build a system prompt listing available functions.
-3. Generate the function name using token‑level constrained decoding.
-4. Enforce a strict JSON schema while generating arguments:
-   - Fixed JSON structure and key order
-   - Parameter names restricted to the provided schema
-   - Value types constrained by JSON type (string, number, integer, boolean)
-5. Coerce parameters to schema types and write results to data/output/.
 
-## Constrained decoding strategy
-The decoder enforces the template:
+1. Load function definitions and prompts through Pydantic models.
+2. Build a prompt describing the available functions.
+3. Load a local causal language model through the included `llm_sdk`.
+4. Start generation with `{"name": "`, then select the highest-logit token from a filtered vocabulary.
+5. Apply additional prefix filtering while generating the function name.
+6. Extract and parse a complete JSON object, rename `args` to `parameters`, and attempt type conversion for recognized parameters.
+7. Save the prompt, selected name, and parameters as JSON.
 
-{"name": "<fn>", "args": {<params>}}
+The default model is `Qwen/Qwen3-0.6B`. The SDK uses PyTorch and Hugging Face Transformers, selecting MPS, CUDA, or CPU according to availability.
 
-It uses:
-- A prefix cache to restrict function name tokens to valid functions
-- Literal‑only emission for fixed JSON segments and parameter keys
-- Type‑aware value generation with token filters that allow only valid prefixes
+## Run locally
 
-This guarantees **parseable JSON** and prevents schema drift or extra keys.
+Requirements: Python 3.10 or later, [uv](https://docs.astral.sh/uv/), and access to download the model and tokenizer on the first run. Model inference requires more memory and setup than the decoder utilities alone.
 
-## Project layout
-- data/input/ — function definitions and test prompts
-- data/output/ — generated function calls
-- src/ — constrained decoding pipeline
-- src/models/ — Pydantic models for schemas and prompts
-
-## Quickstart
-Run the pipeline:
-
+```bash
+git clone https://github.com/ahmedaitelaaoud/Call_me_maybe.git
+cd Call_me_maybe
+uv sync
 uv run python -m src
+```
 
-Optional arguments:
---functions_definition data/input/functions_definition.json
---input data/input/function_calling_tests.json
---output data/output/function_calling_results.json
+The local SDK is an editable path dependency configured in `pyproject.toml`.
+
+```bash
+uv run python -m src \
+  --functions_definition data/input/functions_definition.json \
+  --input data/input/function_calling_tests.json \
+  --output data/output/function_calling_results.json \
+  --model Qwen/Qwen3-0.6B
+```
+
+Use an output path containing a directory, as in the example; the current writer expects one.
+
+Input prompts are JSON objects with a `prompt` field. The included fixtures cover arithmetic, greetings, string reversal, square roots, and regex substitution. Output records contain `prompt`, `name`, and `parameters`; model predictions are not reference answers.
+
+## Code map
+
+| File | Responsibility |
+| --- | --- |
+| `src/__main__.py` | CLI, generation loop, and output writing |
+| `src/constrained_decoding.py` | Token masks, name-prefix cache, JSON extraction, and coercion |
+| `src/json_loader.py` | Input loading |
+| `src/models/` | Input models |
+| `llm_sdk/` | Local model and tokenizer wrapper |
+| `data/input/` | Function definitions and example prompts |
+
+## Engineering decisions and limits
+
+Filtering logits makes the selection mechanism inspectable. The name-prefix cache avoids rebuilding its candidate sets on every step. However, filtering characters is weaker than tracking a JSON grammar.
+
+- The decoder does **not** enforce all parameter names, required fields, or value types during generation.
+- A closing quote is permitted at every cached name prefix, so function-name filtering is not a strict membership guarantee.
+- Type conversion happens after parsing; failed conversions retain the original value. It is not schema validation.
+- Generation is capped at 50 steps. Failure to parse a complete object returns `{"name": "none", "parameters": {}}`.
+- The SDK runs a forward pass over the growing sequence for each token; the loop does not reuse a KV cache.
+- Input fixtures are examples, not an automated accuracy evaluation.
+- The SDK enables `trust_remote_code`; use model sources you trust.
 
 ## Development
-Common Makefile targets:
-- install: uv sync
-- run: uv run python -m src
-- debug: uv run python -m pdb -m src
-- clean: remove caches
-- lint: flake8 + mypy with required flags
-- lint-strict: flake8 + mypy --strict
 
-## Notes
-- The function name is selected by the LLM (no heuristics).
-- Schema validity is enforced during generation, not repaired afterward.
-- Errors on invalid inputs are surfaced with clear messages.
+```bash
+uv run make lint
+uv run make lint-strict
+```
+
+These run lint and type checks, not model-quality tests. The next useful steps are a deterministic decoder test suite, explicit output-schema validation, and an evaluation set separating syntax validity from correct function selection.
+
+## License
+
+No repository-level license is currently included.
+
